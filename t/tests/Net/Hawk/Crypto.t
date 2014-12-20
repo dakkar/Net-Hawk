@@ -70,4 +70,52 @@ subtest POST => sub {
     );
 };
 
+subtest normalized_string => sub {
+    my %args = (
+        credentials => {
+            key => 'dasdfasdf',
+            algorithm => 'sha256',
+        },
+        ts => 1357747017,
+        nonce => 'k3k4j5',
+        method => 'GET',
+        resource => '/resource/something',
+        host => 'example.com',
+        port =>8080
+    );
+    my $string = $c->generate_normalized_string(
+        header => \%args,
+    );
+    is(
+        $string,
+        "hawk.1.header\n1357747017\nk3k4j5\nGET\n/resource/something\nexample.com\n8080\n\n\n",
+        'valid normalized string',
+    );
+
+    $string = $c->generate_normalized_string(
+        header => {
+            %args,
+            ext => 'this is some app data',
+        },
+    );
+    is(
+        $string,
+        "hawk.1.header\n1357747017\nk3k4j5\nGET\n/resource/something\nexample.com\n8080\n\nthis is some app data\n",
+        'valid normalized string (ext)',
+    );
+
+    $string = $c->generate_normalized_string(
+        header => {
+            %args,
+            ext => 'this is some app data',
+            hash => 'U4MKKSmiVxk37JCCrAVIjV/OhB3y+NdwoCr6RShbVkE=',
+        },
+    );
+    is(
+        $string,
+        "hawk.1.header\n1357747017\nk3k4j5\nGET\n/resource/something\nexample.com\n8080\nU4MKKSmiVxk37JCCrAVIjV/OhB3y+NdwoCr6RShbVkE=\nthis is some app data\n",
+        'valid normalized string (payload + ext)',
+    );
+};
+
 done_testing;
