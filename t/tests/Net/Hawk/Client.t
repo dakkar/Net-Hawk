@@ -49,4 +49,52 @@ subtest POST => sub {
     );
 };
 
+subtest header => sub {
+    my $uri = 'http://example.net/somewhere/over/the/rainbow';
+    my $uri_s = 'https://example.net/somewhere/over/the/rainbow';
+    my %args = (
+        credentials => {
+            id => '123456',
+            key => '2983d45yun89q',
+            algorithm => 'sha1',
+        },
+        ext => 'Bazinga!',
+        timestamp => 1353809207,
+        nonce => 'Ygvqdz',
+        payload => 'something to write about',
+    );
+
+    my $header = $c->header($uri,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="bsvY3IfUllw6V5rvk4tStEvpBhE=", ext="Bazinga!", mac="qbf1ZPG/r/e06F4ht+T77LXi5vw="',
+        'valid authorization header (sha1)',
+    );
+
+    $args{credentials}{algorithm}='sha256';
+    $args{content_type} = 'text/plain';
+    $header = $c->header($uri_s,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", ext="Bazinga!", mac="q1CwFoSHzPZSkbIvl0oYlD+91rBUEvFk763nMjMndj8="',
+        'valid authorization header (sha256)',
+    );
+
+    delete $args{ext};
+    $header = $c->header($uri_s,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
+        'valid authorization header (no ext)',
+    );
+
+    $args{ext}=undef;
+    $header = $c->header($uri_s,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
+        'valid authorization header (null ext)',
+    );
+};
+
 done_testing();

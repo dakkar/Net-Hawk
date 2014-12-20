@@ -26,7 +26,7 @@ sub header {
         ],
         nonce => Optional[Str],
         hash => Optional[Str],
-        ext => Optional[Str],
+        ext => Optional[Str|Undef],
         app => Optional[Str],
         dlg => Optional[Str],
         payload => Optional[Str],

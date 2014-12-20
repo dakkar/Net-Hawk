@@ -7,9 +7,9 @@ use Types::Standard 1.000003 qw(Str Int Object Dict Optional Undef Any HasMethod
 use Types::URI qw(Uri);
 use Type::Params qw(compile);
 use Try::Tiny;
-use Digest;
-use Digest::HMAC;
+use Digest::SHA qw(hmac_sha1_base64 hmac_sha256_base64);
 use Net::Hawk::Role::WithUtils;
+use Net::Hawk::Types qw(Algorithm);
 
 with WithUtils(qw(parse_content_type));
 
@@ -24,7 +24,7 @@ sub generate_normalized_string {
         host => Str,
         port => Int,
         hash => Optional[Str],
-        ext => Optional[Str],
+        ext => Optional[Str|Undef],
         app => Optional[Str],
         dlg => Optional[Str],
         slurpy Any,
@@ -56,7 +56,7 @@ sub generate_normalized_string {
 }
 
 sub calculate_payload_hash {
-    state $argcheck = compile(Object,Str|Undef,Str,Str|Undef);
+    state $argcheck = compile(Object,Str|Undef,Algorithm,Str|Undef);
     my ($self,$payload,$algorithm,$content_type) = $argcheck->(@_);
 
     my $hash = $self->initialize_payload_hash($algorithm,$content_type);
@@ -68,7 +68,7 @@ sub calculate_mac {
     state $argcheck = compile(
         Object,Str,
         Dict[
-            algorithm => Str,
+            algorithm => Algorithm,
             key => Str,
             slurpy Any,
         ],
@@ -77,35 +77,34 @@ sub calculate_mac {
     my ($self,$type,$credentials,$options) = $argcheck->(@_);
 
     my $normalized = $self->generate_normalized_string($type,$options);
-    my $hmac = Digest::HMAC->new(
-        $credentials->{key},
-        $self->make_digest($credentials->{algorithm}),
+
+    state $function_map = {
+        sha1 => \&hmac_sha1_base64,
+        sha256 => \&hmac_sha256_base64,
+    };
+
+    my $mac = $function_map->{$credentials->{algorithm}}->(
+        $normalized,$credentials->{key},
     );
-    $hmac->add($normalized);
-    return $self->finalize_digest($hmac);
+
+    return _pad_b64($mac);
 }
 
 sub make_digest {
-    state $argcheck = compile(Object,Str);
+    state $argcheck = compile(Object,Algorithm);
     my ($self,$algorithm) = $argcheck->(@_);
 
-    return try {
-        Digest->new($algorithm);
-    }
-    catch {
-        $algorithm =~ s{(?<=[a-z])(?=[0-9])}{-};
-        Digest->new(uc($algorithm));
-    };
+    return Digest::SHA->new($algorithm =~ s{^sha}{}r);
 }
 
 sub initialize_payload_hash {
-    state $argcheck = compile(Object,Str,Str|Undef);
+    state $argcheck = compile(Object,Algorithm,Str|Undef);
     my ($self,$algorithm,$content_type) = $argcheck->(@_);
 
     my $digest = $self->make_digest($algorithm);
 
     $digest->add(sprintf("hawk.%d.payload\n",header_version()));
-    $digest->add($self->_utils->parse_content_type($content_type),"\n");
+    $digest->add($self->_utils->parse_content_type($content_type)."\n");
     return $digest;
 }
 
@@ -114,16 +113,14 @@ sub finalize_payload_hash {
     my ($self,$digest) = $argcheck->(@_);
 
     $digest->add("\n");
-    return $self->finalize_digest($digest);
+    return _pad_b64($digest->b64digest);
 }
 
-sub finalize_digest {
-    state $argcheck = compile(Object,HasMethods[qw(b64digest)]);
-    my ($self,$digest) = $argcheck->(@_);
+sub _pad_b64 {
+    my ($b64) = @_;
 
-    my $ret = $digest->b64digest();
-    $ret .= '=' while length($ret) % 4;
-    return $ret;
+    $b64 .= '=' while length($b64) % 4;
+    return $b64;
 }
 
 1;
