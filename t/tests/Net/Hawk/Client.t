@@ -97,6 +97,26 @@ subtest header => sub {
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
         'valid authorization header (null ext)',
     );
+
+    $args{payload}='';
+    $header = $c->header($uri_s,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="q/t+NNAkQZNlq/aAD6PlexImwQTxwgT2MahfTa9XRLA=", mac="U5k16YEzn3UnBHKeBzsDXn067Gu3R4YaY6xOt9PYRZM="',
+        'valid authorization header (empty payload)',
+    );
+
+    $args{hash} = $c->_crypto->calculate_payload_hash(
+        'something to write about',
+        $args{credentials}{algorithm},
+        $args{content_type},
+    );
+    $header = $c->header($uri_s,POST => \%args);
+    is(
+        $header->{field},
+        'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
+        'valid authorization header (pre hashed payload)',
+    );
 };
 
 done_testing();
