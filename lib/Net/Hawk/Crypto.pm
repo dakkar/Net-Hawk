@@ -25,8 +25,8 @@ sub generate_normalized_string {
         port => Int,
         hash => Optional[Str],
         ext => Optional[Str|Undef],
-        app => Optional[Str],
-        dlg => Optional[Str],
+        app => Optional[Str|Undef],
+        dlg => Optional[Str|Undef],
         slurpy Any,
     ]);
     my ($self,$type,$options) = $argcheck->(@_);
@@ -78,16 +78,49 @@ sub calculate_mac {
 
     my $normalized = $self->generate_normalized_string($type,$options);
 
+    return $self->calc_hmac(
+        $normalized,
+        $credentials->{algorithm},
+        $credentials->{key},
+    );
+}
+
+sub calculate_ts_mac {
+    state $argcheck = compile(
+        Object,Int,
+        Dict[
+            algorithm => Algorithm,
+            key => Str,
+            slurpy Any,
+        ],
+    );
+    my ($self,$ts,$credentials) = $argcheck->(@_);
+
+    my $string = sprintf(
+        "hawk.%s.ts\n%d\n",
+        header_version(),
+        $ts,
+    );
+
+    return $self->calc_hmac(
+        $string,
+        $credentials->{algorithm},
+        $credentials->{key},
+    );
+}
+
+sub calc_hmac {
+    state $argcheck = compile(Object,Str,Algorithm,Str);
+    my ($self,$data,$algorithm,$key) = $argcheck->(@_);
+
     state $function_map = {
         sha1 => \&hmac_sha1_base64,
         sha256 => \&hmac_sha256_base64,
     };
 
-    my $mac = $function_map->{$credentials->{algorithm}}->(
-        $normalized,$credentials->{key},
-    );
-
-    return _pad_b64($mac);
+    return _pad_b64($function_map->{$algorithm}->(
+        $data,$key,
+    ));
 }
 
 sub make_digest {

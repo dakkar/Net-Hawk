@@ -119,4 +119,72 @@ subtest header => sub {
     );
 };
 
+subtest authenticate => sub {
+    ok(
+        ! $c->authenticate([
+            'server-authorization' => 'Hawk mac="abc", bad="xyz"',
+        ],{}),
+        'returns false on invalid header',
+    );
+
+    my %artifacts = (
+        method => 'POST',
+        host => 'example.com',
+        port => '8080',
+        resource => '/resource/4?filter=a',
+        ts => '1362336900',
+        nonce => 'eb5S_L',
+        hash => 'nJjkVtBE5Y/Bk38Aiokwn0jiJxt/0S2WRSUwWLCf5xk=',
+        ext => 'some-app-data',
+        app => undef,
+        dlg => undef,
+        mac => 'BlmSe8K+pbKIb6YsZCnt4E1GrYvY1AaYayNR82dGpIk=',
+        id => '123456',
+    );
+
+    my %credentials = (
+        id => '123456',
+        key => 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
+        algorithm => 'sha256',
+        user => 'steve'
+    );
+
+    ok(
+        ! $c->authenticate([
+            'content-type' => 'text/plain',
+            'server-authorization' => 'Hawk mac="_IJRsMl/4oL+nn+vKoeVZPdCHXB4yJkNnBbTbHFZUYE=", hash="f9cDF/TDm7TkYRLnGwRMfeDzT6LixQVLvrIKhh0vgmM=", ext="response-specific"',
+        ],\%credentials,\%artifacts),
+        'returns false on invalid mac',
+    );
+
+    ok(
+        $c->authenticate([
+            'content-type' => 'text/plain',
+            'server-authorization' => 'Hawk mac="XIJRsMl/4oL+nn+vKoeVZPdCHXB4yJkNnBbTbHFZUYE=", hash="f9cDF/TDm7TkYRLnGwRMfeDzT6LixQVLvrIKhh0vgmM=", ext="response-specific"',
+        ],\%credentials,\%artifacts),
+        'returns true on ignoring hash',
+    );
+
+    ok(
+        ! $c->authenticate([
+            'www-authenticate' => 'Hawk ts="1362346425875", tsm="PhwayS28vtnn3qbv0mqRBYSXebN/zggEtucfeZ620Zo=", x="Stale timestamp"',
+        ],{}),
+        'fails on invalid WWW-Authenticate header format',
+    );
+
+    ok(
+        ! $c->authenticate([
+            'www-authenticate' => 'Hawk ts="1362346425875", tsm="hwayS28vtnn3qbv0mqRBYSXebN/zggEtucfeZ620Zo=", error="Stale timestamp"',
+        ],\%credentials),
+        'fails on invalid WWW-Authenticate header format',
+    );
+
+    ok(
+        $c->authenticate([
+            'www-authenticate' => 'Hawk error="Stale timestamp"',
+        ],{}),
+        'skips tsm validation when missing ts',
+    );
+};
+
 done_testing();

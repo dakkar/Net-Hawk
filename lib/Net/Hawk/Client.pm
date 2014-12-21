@@ -3,12 +3,13 @@ use strict;
 use warnings;
 use 5.010;
 use Moo;
-use Types::Standard 1.000003 qw(Str Int Object Dict Optional Undef Any HasMethods slurpy);
+use Types::Standard 1.000003 qw(Str Int Object Dict Optional Undef Any HashRef HasMethods slurpy);
 use Types::URI qw(Uri);
 use Type::Params qw(compile);
 use Try::Tiny;
 use Net::Hawk::Utils;
 use Session::Token;
+use Net::Hawk::Types qw(HTTPHeaders);
 use Net::Hawk::Role::WithUtils;
 use Net::Hawk::Role::WithCrypto;
 
@@ -88,5 +89,61 @@ sub header {
     };
 }
 
+sub authenticate {
+    state $argcheck = compile(
+        Object,
+        HTTPHeaders,
+        HashRef,
+        Optional[HashRef],
+        Optional[HashRef],
+    );
+    my ($self,$headers,$credentials,$artifacts,$options) = $argcheck->(@_);
+
+    $artifacts //= {}; $options //= {};
+
+    my $www_auth = $headers->header('www-authenticate');
+    if ($www_auth) {
+        my $attributes = try { $self->_utils->parse_authorization_header(
+            $www_auth,[qw(ts tsm error)],
+        ) };
+        return unless $attributes;
+
+        if ($attributes->{ts}) {
+            my $tsm = $self->_crypto->calculate_ts_mac(
+                $attributes->{ts},$credentials,
+            );
+            return unless $tsm eq $attributes->{tsm};
+        }
+    }
+
+    my $serv_auth = $headers->header('server-authorization');
+    return 1 unless $serv_auth || $options->{required};
+
+    my $attributes = try { $self->_utils->parse_authorization_header(
+        $serv_auth,
+        [qw(mac ext hash)],
+    ) };
+    return unless $attributes;
+
+    my $mac = $self->_crypto->calculate_mac(
+        response => $credentials,
+        {
+            %$artifacts,
+            ext => $attributes->{ext},
+            hash => $attributes->{hash},
+        },
+    );
+    return unless $mac eq $attributes->{mac};
+
+    return 1 unless defined $options->{payload};
+    return unless $attributes->{hash};
+
+    my $calculated_hash = $self->_crypto->calculated_payload_hash(
+        $options->{payload},
+        $credentials->{algorithm},
+        scalar $headers->header('content-type'),
+    );
+    return $calculated_hash eq $attributes->{hash};
+}
 
 1;
