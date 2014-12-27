@@ -25,25 +25,25 @@ package Net::Hawk::Utils {
     multi parse_authorization_header(Str:D $header, @keys=qw<id ts nonce hash ext mac app dlg>) returns Hash {
           my $valid_keys = Set(@keys);
 
-          $header ~~ m:i{^ hawk [\: \s+ (.+) ]? $}
+          my ($attr_string) = @($header ~~ m:i{^ hawk [\: \s+ (.+) ]? $}
              or Net::Hawk::Errors::BadRequest.new(
                 text => 'invalid header syntax',
                 value => $header,
-             ).throw;
-          my $attr_string = $/[0];
+             ).throw
+          );
 
           my %attributes;
 
           my @attr_strings = split /\s* ',' \s*/, $attr_string;
 
           for @attr_strings -> $attr {
-              unless $attr ~~ m{^ (\w+) '="' (<-["\\]>*) '"' } {
-                 Net::Hawk::Errors::BadRequest.new(
+              my ($key, $value) = @(
+                 $attr ~~ m{^ (\w+) '="' (<-["\\]>*) '"' }
+                 or Net::Hawk::Errors::BadRequest.new(
                     text => 'Bad header format',
                     value => $header,
-                 ).throw;
-              }
-              my ($key,$value) = @();
+                 ).throw
+              );
 
               Net::Hawk::Errors::BadRequest.new(
                 text => "Unknown attribute $key",
