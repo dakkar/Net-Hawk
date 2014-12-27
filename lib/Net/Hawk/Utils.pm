@@ -48,17 +48,17 @@ package Net::Hawk::Utils {
               Net::Hawk::Errors::BadRequest.new(
                 text => "Unknown attribute $key",
                 value => $header,
-              ) unless $valid_keys{$key} :exists;
+              ).throw unless $valid_keys{~$key} :exists;
 
               Net::Hawk::Errors::BadRequest.new(
                 text => "Bad attribute value $value",
                 value => $header,
-              ) unless $value ~~ m{^<[ \w !#$%&'()*+,\-./:;\<=\>?@\[\]^`{|}~ ]>+$};
+              ).throw unless $value ~~ m{^<[ \w !#$%&'()*+,\-./:;\<=\>?@\[\]^`{|}~ ]>+$};
 
               Net::Hawk::Errors::BadRequest.new(
                 text => "Duplicate attribute $key",
                 value => $header,
-              ) if %attributes{$key} :exists;
+              ).throw if %attributes{$key} :exists;
 
               %attributes{$key} = ~$value;
           }

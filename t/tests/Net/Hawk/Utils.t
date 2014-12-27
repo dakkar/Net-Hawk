@@ -12,15 +12,23 @@ subtest {
 subtest {
     throws_like { parse_authorization_header(Str) },
         Net::Hawk::Errors::UnAuthorized,
-          text => 'no header';
+          text => rx:s/no header/;
 
     throws_like { parse_authorization_header('bad') },
         Net::Hawk::Errors::BadRequest,
-          text => 'invalid header syntax';
+          text => rx:s/invalid header/;
 
     throws_like { parse_authorization_header('hawk: bad') },
         Net::Hawk::Errors::BadRequest,
-          text => 'Bad header format';
+          text => rx:i:s/bad header/;
+
+    throws_like { parse_authorization_header('hawk: bad="a"') },
+        Net::Hawk::Errors::BadRequest,
+          text => rx:i:s/unknown attribute/;
+
+    throws_like { parse_authorization_header('hawk: id="a", id="b"') },
+        Net::Hawk::Errors::BadRequest,
+          text => rx:i:s/duplicate attribute/;
 
     is_deeply( parse_authorization_header('hawk: id="1"'),
                { id => '1' },
