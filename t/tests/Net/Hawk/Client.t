@@ -1,30 +1,28 @@
 #!perl
-use strict;
-use warnings;
-use Test::More;
+use v6;
+use Test;
 use Net::Hawk::Client;
+use Net::Hawk::Crypto;
 
-my $c = Net::Hawk::Client->new();
-
-subtest readme => sub {
+subtest {
     my %credentials = (
         id => 'dh37fgj492je',
         key => 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
         algorithm => 'sha256',
     );
     my %options = (
-        credentials => \%credentials,
+        credentials => %credentials,
         timestamp => 1353832234,
         nonce => 'j4h3g2',
         ext => 'some-app-ext-data'
     );
 
-    subtest GET => sub {
-        my $field = $c->header(
+    subtest {
+        my $field = Net::Hawk::Client::header(
             'http://example.com:8000/resource/1?b=1&a=2',
             'GET',
-            \%options,
-        )->{field};
+            |%options,
+        )<field>;
 
         is(
             $field,
@@ -33,15 +31,15 @@ subtest readme => sub {
         );
     };
 
-    subtest POST => sub {
-        $options{payload} = 'Thank you for flying Hawk';
-        $options{content_type} = 'text/plain';
+    subtest {
+        %options<payload> = 'Thank you for flying Hawk';
+        %options<content_type> = 'text/plain';
 
-        my $field = $c->header(
+        my $field = Net::Hawk::Client::header(
             'http://example.com:8000/resource/1?b=1&a=2',
             'POST',
-            \%options,
-        )->{field};
+            |%options,
+        )<field>;
 
         is(
             $field,
@@ -51,7 +49,7 @@ subtest readme => sub {
     };
 };
 
-subtest header => sub {
+subtest {
     my $uri = 'http://example.net/somewhere/over/the/rainbow';
     my $uri_s = 'https://example.net/somewhere/over/the/rainbow';
     my %args = (
@@ -66,58 +64,62 @@ subtest header => sub {
         payload => 'something to write about',
     );
 
-    my $header = $c->header($uri,POST => \%args);
+    my $header = Net::Hawk::Client::header($uri,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="bsvY3IfUllw6V5rvk4tStEvpBhE=", ext="Bazinga!", mac="qbf1ZPG/r/e06F4ht+T77LXi5vw="',
         'valid authorization header (sha1)',
     );
 
-    $args{credentials}{algorithm}='sha256';
-    $args{content_type} = 'text/plain';
-    $header = $c->header($uri_s,POST => \%args);
+    %args<credentials><algorithm>='sha256';
+    %args<content_type> = 'text/plain';
+    $header = Net::Hawk::Client::header($uri_s,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", ext="Bazinga!", mac="q1CwFoSHzPZSkbIvl0oYlD+91rBUEvFk763nMjMndj8="',
         'valid authorization header (sha256)',
     );
 
-    delete $args{ext};
-    $header = $c->header($uri_s,POST => \%args);
+    %args<ext> :delete;
+    $header = Net::Hawk::Client::header($uri_s,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
         'valid authorization header (no ext)',
     );
 
-    $args{ext}=undef;
-    $header = $c->header($uri_s,POST => \%args);
+    %args<ext>=Str;
+    $header = Net::Hawk::Client::header($uri_s,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
         'valid authorization header (null ext)',
     );
 
-    $args{payload}='';
-    $header = $c->header($uri_s,POST => \%args);
+    %args<payload>='';
+    $header = Net::Hawk::Client::header($uri_s,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="q/t+NNAkQZNlq/aAD6PlexImwQTxwgT2MahfTa9XRLA=", mac="U5k16YEzn3UnBHKeBzsDXn067Gu3R4YaY6xOt9PYRZM="',
         'valid authorization header (empty payload)',
     );
 
-    $args{hash} = $c->_crypto->calculate_payload_hash(
+    %args<hash> = calculate_payload_hash(
         'something to write about',
-        $args{credentials}{algorithm},
-        $args{content_type},
+        %args<credentials><algorithm>,
+        %args<content_type>,
     );
-    $header = $c->header($uri_s,POST => \%args);
+    $header = Net::Hawk::Client::header($uri_s,'POST',|%args);
     is(
-        $header->{field},
+        $header<field>,
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
         'valid authorization header (pre hashed payload)',
     );
 };
+
+done;
+
+=begin finish
 
 subtest authenticate => sub {
     ok(

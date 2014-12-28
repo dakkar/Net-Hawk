@@ -68,31 +68,34 @@ package Net::Hawk::Crypto {
                                    parse_content_type($content_type),
                                    $payload)));
     };
-}
 
+    sub calc_hmac(
+      Str:D $data,
+      Str:D $algorithm,
+      Str:D $key,
+    ) returns Str {
+        my $hash_function = digest_for($algorithm);
+        return MIME::Base64.encode(
+            hmac($key,$data,$hash_function)
+        );
+    }
+
+    sub calculate_mac(
+      Str:D $type,
+      Hash:D $credentials ( Str :$algorithm, Str :$key, *% ),
+      Hash:D $options
+    ) returns Str is export {
+        my $normalized = generate_normalized_string(:$type,|$options);
+
+        return calc_hmac(
+            $normalized,
+            $algorithm,
+            $key,
+        );
+    }
+
+}
 =begin finish
-
-sub calculate_mac {
-    state $argcheck = compile(
-        Object,Str,
-        Dict[
-            algorithm => Algorithm,
-            key => Str,
-            slurpy Any,
-        ],
-        HashRef,
-    );
-    my ($self,$type,$credentials,$options) = $argcheck->(@_);
-
-    my $normalized = $self->generate_normalized_string($type,$options);
-
-    return $self->calc_hmac(
-        $normalized,
-        $credentials->{algorithm},
-        $credentials->{key},
-    );
-}
-
 sub calculate_ts_mac {
     state $argcheck = compile(
         Object,Int,
@@ -115,20 +118,6 @@ sub calculate_ts_mac {
         $credentials->{algorithm},
         $credentials->{key},
     );
-}
-
-sub calc_hmac {
-    state $argcheck = compile(Object,Str,Algorithm,Str);
-    my ($self,$data,$algorithm,$key) = $argcheck->(@_);
-
-    state $function_map = {
-        sha1 => \&hmac_sha1_base64,
-        sha256 => \&hmac_sha256_base64,
-    };
-
-    return _pad_b64($function_map->{$algorithm}->(
-        $data,$key,
-    ));
 }
 
 sub make_digest {
