@@ -18,19 +18,19 @@ subtest {
         Net::Hawk::Errors::BadRequest,
           text => rx:s/invalid header/;
 
-    throws_like { parse_authorization_header('hawk: bad') },
+    throws_like { parse_authorization_header('hawk bad') },
         Net::Hawk::Errors::BadRequest,
           text => rx:i:s/bad header/;
 
-    throws_like { parse_authorization_header('hawk: bad="a"') },
+    throws_like { parse_authorization_header('hawk bad="a"') },
         Net::Hawk::Errors::BadRequest,
           text => rx:i:s/unknown attribute/;
 
-    throws_like { parse_authorization_header('hawk: id="a", id="b"') },
+    throws_like { parse_authorization_header('hawk id="a", id="b"') },
         Net::Hawk::Errors::BadRequest,
           text => rx:i:s/duplicate attribute/;
 
-    is_deeply( parse_authorization_header('hawk: id="1"'),
+    is_deeply( parse_authorization_header('hawk id="1"'),
                { id => '1' },
                'ok parse');
 };

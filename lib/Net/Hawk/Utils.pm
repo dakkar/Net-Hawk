@@ -25,7 +25,7 @@ package Net::Hawk::Utils {
     multi parse_authorization_header(Str:D $header, @keys=qw<id ts nonce hash ext mac app dlg>) returns Hash {
           my $valid_keys = Set(@keys);
 
-          my ($attr_string) = @($header ~~ m:i{^ hawk [\: \s+ (.+) ]? $}
+          my ($attr_string) = @($header ~~ m:i{^ hawk [ \s+ (.+) ]? $}
              or Net::Hawk::Errors::BadRequest.new(
                 text => 'invalid header syntax',
                 value => $header,
