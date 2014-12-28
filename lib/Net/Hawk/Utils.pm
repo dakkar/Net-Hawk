@@ -53,7 +53,7 @@ package Net::Hawk::Utils {
               Net::Hawk::Errors::BadRequest.new(
                 text => "Bad attribute value $value",
                 value => $header,
-              ).throw unless $value ~~ m{^<[ \w !#$%&'()*+,\-./:;\<=\>?@\[\]^`{|}~ ]>+$};
+              ).throw unless $value ~~ m{^<[ \w \  !#$%&'()*+,\-./:;\<=\>?@\[\]^`{|}~ ]>+$};
 
               Net::Hawk::Errors::BadRequest.new(
                 text => "Duplicate attribute $key",

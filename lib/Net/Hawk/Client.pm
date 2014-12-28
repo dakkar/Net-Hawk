@@ -30,12 +30,12 @@ package Net::Hawk::Client {
         $timestamp //= now_secs($localtime_offset_msec);
 
         my %artifacts = (
-            ts => $timestamp,
-            nonce => $nonce // ['a'..'z','A'..'Z',0..9].pick(6).join(''),
+            ts => +($timestamp),
+            nonce => $nonce // ['a'..'z','A'..'Z','_',0..9].pick(6).join(''),
             method => $method,
             resource => $uri.path_query,
             host => $uri.host,
-            port => $uri.port // ($uri.scheme eq 'http:' ?? 80 !! 443),
+            port => +($uri.port) // ($uri.scheme eq 'http:' ?? 80 !! 443),
         );
         for <hash ext app dlg> -> $k {
             next unless defined $::($k);
@@ -80,65 +80,70 @@ package Net::Hawk::Client {
             artifacts => %artifacts,
         };
     }
-};
 
-=begin finish
-
-sub authenticate {
-    state $argcheck = compile(
-        Object,
-        HTTPHeaders,
-        HashRef,
-        Optional[HashRef],
-        Optional[HashRef],
-    );
-    my ($self,$headers,$credentials,$artifacts,$options) = $argcheck->(@_);
-
-    $artifacts //= {}; $options //= {};
-
-    my $www_auth = $headers->header('www-authenticate');
-    if ($www_auth) {
-        my $attributes = try { $self->_utils->parse_authorization_header(
-            $www_auth,[qw(ts tsm error)],
-        ) };
-        return unless $attributes;
-
-        if ($attributes->{ts}) {
-            my $tsm = $self->_crypto->calculate_ts_mac(
-                $attributes->{ts},$credentials,
-            );
-            return unless $tsm eq $attributes->{tsm};
+        my sub get_header(Str:D $key, @headers) returns Str {
+            @headers \
+                ==> grep { .key eq $key } \
+                ==> map { .value } \
+                ==> join ',';
         }
-    }
+        our sub authenticate(
+          Array:D $headers,
+          Hash:D $credentials,
+            Hash $artifacts?,
+            Hash $options?,
+        ) returns Bool {
 
-    my $serv_auth = $headers->header('server-authorization');
-    return 1 unless $serv_auth || $options->{required};
+            my $www_auth = get_header('www-authenticate',$headers);
 
-    my $attributes = try { $self->_utils->parse_authorization_header(
-        $serv_auth,
-        [qw(mac ext hash)],
-    ) };
-    return unless $attributes;
+            if ($www_auth) {
+                my $attributes;
+                try {
+                    $attributes = parse_authorization_header(
+                        $www_auth,<ts tsm error>,
+                    );
+                    CATCH { default { return False } }
+                };
 
-    my $mac = $self->_crypto->calculate_mac(
-        response => $credentials,
-        {
-            %$artifacts,
-            ext => $attributes->{ext},
-            hash => $attributes->{hash},
-        },
-    );
-    return unless $mac eq $attributes->{mac};
+                if ($attributes<ts>) {
+                    my $tsm = calculate_ts_mac(
+                        +$attributes<ts>,$credentials,
+                    );
+                    return False unless $tsm eq $attributes<tsm>;
+                }
+            }
 
-    return 1 unless defined $options->{payload};
-    return unless $attributes->{hash};
+            my $serv_auth = get_header('server-authorization',$headers);
+            return True unless $serv_auth || $options<required>;
 
-    my $calculated_hash = $self->_crypto->calculated_payload_hash(
-        $options->{payload},
-        $credentials->{algorithm},
-        scalar $headers->header('content-type'),
-    );
-    return $calculated_hash eq $attributes->{hash};
+            my $attributes;
+            try {
+                $attributes = parse_authorization_header(
+                    $serv_auth,
+                    <mac ext hash>,
+                );
+                CATCH { default { return False } }
+            };
+
+            my $mac = calculate_mac(
+                'response',
+                $credentials,
+                %(
+                    %$artifacts,
+                    ext => $attributes<ext>,
+                    hash => $attributes<hash>,
+                ),
+            );
+            return False unless $mac eq $attributes<mac>;
+
+            return True unless defined $options<payload>;
+            return False unless $attributes<hash>;
+
+            my $calculated_hash = calculate_payload_hash(
+                $options<payload>,
+                $credentials<algorithm>,
+                get_header('content-type',$headers),
+            );
+            return $calculated_hash eq $attributes<hash>;
+        };
 }
-
-1;

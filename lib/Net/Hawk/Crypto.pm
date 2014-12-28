@@ -14,7 +14,7 @@ package Net::Hawk::Crypto {
     };
     multi generate_normalized_string(
         Str:D :$type!,
-        URI:D :$resource!,
+        URI :$resource,
         Int:D :$ts!,
         Str:D :$nonce!,
         Str :$method,
@@ -32,7 +32,7 @@ package Net::Hawk::Crypto {
           $ts,
           $nonce,
           uc($method // ''),
-          $resource.path_query,
+          ( $resource ?? $resource.path_query !! ''),
           lc($host),
           $port,
           $hash // '',
@@ -86,52 +86,29 @@ package Net::Hawk::Crypto {
       Hash:D $options
     ) returns Str is export {
         my $normalized = generate_normalized_string(:$type,|$options);
+        CATCH { warn $type;warn $options.perl;die $_ }
 
         return calc_hmac(
             $normalized,
             $algorithm,
             $key,
         );
+    };
+
+    sub calculate_ts_mac(
+      Int:D $ts,
+      Hash:D $credentials ( Str :$algorithm, Str :$key, *% ),
+    ) returns Str is export {
+        my $string = sprintf(
+            "hawk.%s.ts\n%d\n",
+            header_version(),
+            $ts,
+        );
+
+        return calc_hmac(
+            $string,
+            $algorithm,
+            $key,
+        );
     }
-
 }
-=begin finish
-sub calculate_ts_mac {
-    state $argcheck = compile(
-        Object,Int,
-        Dict[
-            algorithm => Algorithm,
-            key => Str,
-            slurpy Any,
-        ],
-    );
-    my ($self,$ts,$credentials) = $argcheck->(@_);
-
-    my $string = sprintf(
-        "hawk.%s.ts\n%d\n",
-        header_version(),
-        $ts,
-    );
-
-    return $self->calc_hmac(
-        $string,
-        $credentials->{algorithm},
-        $credentials->{key},
-    );
-}
-
-sub make_digest {
-    state $argcheck = compile(Object,Algorithm);
-    my ($self,$algorithm) = $argcheck->(@_);
-
-    return Digest::SHA->new($algorithm =~ s{^sha}{}r);
-}
-
-sub _pad_b64 {
-    my ($b64) = @_;
-
-    $b64 .= '=' while length($b64) % 4;
-    return $b64;
-}
-
-1;
