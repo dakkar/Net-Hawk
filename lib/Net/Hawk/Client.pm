@@ -97,13 +97,12 @@ package Net::Hawk::Client {
             my $www_auth = get_header('www-authenticate',$headers);
 
             if ($www_auth) {
-                my $attributes;
-                try {
+                my $attributes = try {
                     $attributes = parse_authorization_header(
                         $www_auth,<ts tsm error>,
                     );
-                    CATCH { default { return False } }
                 };
+                return False unless $attributes;
 
                 if ($attributes<ts>) {
                     my $tsm = calculate_ts_mac(
@@ -116,14 +115,13 @@ package Net::Hawk::Client {
             my $serv_auth = get_header('server-authorization',$headers);
             return True unless $serv_auth || $options<required>;
 
-            my $attributes;
-            try {
-                $attributes = parse_authorization_header(
+            my $attributes = try {
+                parse_authorization_header(
                     $serv_auth,
                     <mac ext hash>,
                 );
-                CATCH { default { return False } }
             };
+            return False unless $attributes;
 
             my $mac = calculate_mac(
                 'response',
