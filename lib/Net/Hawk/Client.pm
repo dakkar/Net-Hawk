@@ -69,9 +69,9 @@ package Net::Hawk::Client {
         ~ sprintf(', mac="%s"',$mac);
 
         if (%artifacts<app>) {
-            $header .= sprintf(', app="%s"', %artifacts<app>);
+            $header ~= sprintf(', app="%s"', %artifacts<app>);
             if (%artifacts<dlg>) {
-                $header .= sprintf(', dlg="%s"',%artifacts<dlg>);
+                $header ~= sprintf(', dlg="%s"',%artifacts<dlg>);
             }
         }
 

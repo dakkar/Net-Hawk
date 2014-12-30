@@ -40,7 +40,7 @@ package Net::Hawk::Crypto {
       );
 
       if ($app) {
-          $normalized .= sprintf(
+          $normalized ~= sprintf(
               "%s\n%s\n",
               $app,
               $dlg // '',
