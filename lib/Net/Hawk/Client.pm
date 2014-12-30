@@ -145,4 +145,14 @@ package Net::Hawk::Client {
         return $calculated_hash eq $attributes<hash>;
     };
 
+    our proto getBewit(*@,*%) {*};
+    multi getBewit(Str:D $uri!,*%nam) {
+        return getBewit(URI.new($uri),|%nam);
+    };
+    multi getBewit(
+        URI:D $uri!,
+        :%credentials!,
+        Int:D :$ttl_sec!,
+        Str :$ext,
+    ) { return "$ext" };
 }
