@@ -40,6 +40,6 @@ subtest {
             },
         );
     });
-};
+}, 'generate a bewit then successfully authenticate it';
 
 done;

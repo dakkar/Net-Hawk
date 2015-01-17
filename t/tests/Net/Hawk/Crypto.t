@@ -66,7 +66,7 @@ subtest {
             'normalized string generated ok',
         );
     };
-};
+},'readme';
 
 subtest {
     my %args = (
@@ -112,6 +112,6 @@ subtest {
         "hawk.1.header\n1357747017\nk3k4j5\nGET\n/resource/something\nexample.com\n8080\nU4MKKSmiVxk37JCCrAVIjV/OhB3y+NdwoCr6RShbVkE=\nthis is some app data\n",
         'valid normalized string (payload + ext)',
     );
-};
+},'normalized string';
 
 done;

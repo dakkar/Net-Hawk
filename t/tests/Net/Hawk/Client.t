@@ -115,7 +115,7 @@ subtest {
         'Hawk id="123456", ts="1353809207", nonce="Ygvqdz", hash="2QfCt3GuY9HQnHWyWD3wX68ZOKbynqlfYmuO2ZBRqtY=", mac="HTgtd0jPI6E4izx8e4OHdO36q00xFCU0FolNq3RiCYs="',
         'valid authorization header (pre hashed payload)',
     );
-};
+},'header';
 
 subtest {
     ok(
@@ -181,6 +181,6 @@ subtest {
         ],{}),
         'skips tsm validation when missing ts',
     );
-};
+},'authenticate';
 
 done;

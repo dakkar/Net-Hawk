@@ -7,7 +7,7 @@ subtest {
     is(parse_content_type(Str),'','undef -> empty string');
     is(parse_content_type('text/plain'),'text/plain','simple');
     is(parse_content_type('text/plain; charset=utf-8'),'text/plain','ignore options');
-};
+},'parse content type';
 
 subtest {
     throws_like { parse_authorization_header(Str) },
@@ -33,6 +33,6 @@ subtest {
     is_deeply( parse_authorization_header('hawk id="1"'),
                { id => '1' },
                'ok parse');
-};
+},'parse header';
 
 done;
