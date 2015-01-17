@@ -3,5 +3,5 @@ package Net::Hawk::Uri {
     use Net::Hawk::Client;
     use Net::Hawk::Server;
     our constant &getBewit := &Net::Hawk::Client::getBewit;
-    our constant &authenticate := &Net::Hawk::Server::authenticate;
+    our constant &authenticate := &Net::Hawk::Server::authenticateBewit;
 }

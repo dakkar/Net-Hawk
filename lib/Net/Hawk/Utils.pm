@@ -65,6 +65,42 @@ package Net::Hawk::Utils {
 
           return %attributes;
      }
+
+    sub parse_host(%req,Str $header_host_name) {
+        $header_host_name //= 'host';
+        $header_host_name .= lc;
+        my $host = %req<$header_host_name>;
+        return Nil unless $host;
+        my $scheme = %req<connection><encrypted> ?? 'https' !! 'http';
+        my $uri = try { URI.new("{$scheme}://{$host}",:is_validating) };
+        return Nil unless $uri;
+        return {
+            name => $uri.host,
+            port => $uri.port,
+        };
+    };
+
+    sub parse_request(%req,%options) is export {
+        return %req unless %req<headers>;
+
+        my %host;
+        unless %options{all(<host port>)}.defined {
+            %host = parse_host(%req,%options<host_header_name>);
+            Net::Hawk::Errors::BadRequest.new(
+                text => 'Invalid Host header',
+                value => %req,
+            ).throw unless %host;
+        };
+
+        my %request = (
+            %req<method url> :p,
+            host => %options<host> // %host<name>,
+            port => %options<port> // %host<port>,
+            authorization => %req<headers><authorization>,
+            content_type => %req<headers><content_type> // '',
+        );
+        return %request;
+    };
 }
 
 1;

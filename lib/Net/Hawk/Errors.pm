@@ -13,5 +13,9 @@ package Net::Hawk::Errors {
         }
     }
 
-    class UnAuthorized is base {}
+    class UnAuthorized is base {
+        has $.tsm;
+    }
+
+    class Internal is base {}
 }

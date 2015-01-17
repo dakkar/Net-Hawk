@@ -50,6 +50,13 @@ package Net::Hawk::Crypto {
       return $normalized;
     };
 
+    sub is_valid_hash_algorithm(Str $algorithm) is export {
+        return False unless $algorithm;
+        return True if $algorithm eq 'sha1';
+        return True if $algorithm eq 'sha256';
+        return False;
+    }
+
     sub digest_for(Str:D $algorithm) {
         if ($algorithm eq 'sha1') { return &sha1 }
         elsif ($algorithm eq 'sha256') { return &sha256 }
@@ -86,7 +93,6 @@ package Net::Hawk::Crypto {
       Hash:D $options
     ) returns Str is export {
         my $normalized = generate_normalized_string(:$type,|$options);
-        CATCH { warn $type;warn $options.perl;die $_ }
 
         return calc_hmac(
             $normalized,
@@ -110,5 +116,14 @@ package Net::Hawk::Crypto {
             $algorithm,
             $key,
         );
-    }
+    };
+
+    sub timestamp_message(
+      %credentials,
+      Int $localtime_offset_msec
+    ) is export {
+        my $ts = now_msecs($localtime_offset_msec);
+        my $tsm = calculate_ts_mac($ts,%credentials);
+        return { :$ts, :$tsm };
+    };
 }

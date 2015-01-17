@@ -1,6 +1,8 @@
 package Net::Hawk::Client {
     use v6;
     use URI;
+    use URI::Escape;
+    use MIME::Base64;
     use Net::Hawk::Utils;
     use Net::Hawk::Crypto;
 
@@ -35,7 +37,7 @@ package Net::Hawk::Client {
             method => $method,
             resource => $uri.path_query,
             host => $uri.host,
-            port => +($uri.port) // ($uri.scheme eq 'http:' ?? 80 !! 443),
+            port => +($uri.port) // ($uri.scheme eq 'http' ?? 80 !! 443),
         );
         for <hash ext app dlg> -> $k {
             next unless defined $::($k);
@@ -98,7 +100,7 @@ package Net::Hawk::Client {
 
         if ($www_auth) {
             my $attributes = try {
-                $attributes = parse_authorization_header(
+                parse_authorization_header(
                     $www_auth,<ts tsm error>,
                 );
             };
@@ -128,8 +130,7 @@ package Net::Hawk::Client {
             $credentials,
             %(
                 %$artifacts,
-                ext => $attributes<ext>,
-                hash => $attributes<hash>,
+                $attributes<ext hash> :p,
             ),
         );
         return False unless $mac eq $attributes<mac>;
@@ -146,13 +147,39 @@ package Net::Hawk::Client {
     };
 
     our proto getBewit(*@,*%) {*};
-    multi getBewit(Str:D $uri!,*%nam) {
-        return getBewit(URI.new($uri),|%nam);
+    multi getBewit(Str:D $uri!,*@pos,*%nam) {
+        return getBewit(URI.new($uri),|@pos,|%nam);
     };
     multi getBewit(
-        URI:D $uri!,
-        :%credentials!,
-        Int:D :$ttl_sec!,
-        Str :$ext,
-    ) { return "$ext" };
+        URI $uri!,
+        %options,
+    ) returns Str {
+        return ''
+            unless $uri && %options
+            && %options<ttl_sec>.defined
+            && %options<credentials>
+            && %options<credentials>{all <id key algorithm>}.defined
+            && is_valid_hash_algorithm(%options<credentials><algorithm>)
+            ;
+
+        %options<ext> //= '';
+        my $now = now_msecs(%options<localtime_offset_msec>//0);
+        my $exp = floor($now/1000)+%options<ttl_sec>;
+        my $mac = calculate_mac(
+            'bewit',
+            %options<credentials>,
+            {
+                ts => $exp,
+                nonce => '',
+                method => 'GET',
+                resource => $uri.path_query,
+                host => $uri.host,
+                port => +($uri.port) // ($uri.scheme eq 'http' ?? 80 !! 443),
+                %options<ext> :p,
+            }
+        );
+
+        my $bewit = "%options<credentials><id>\\$exp\\$mac\\%options<ext>";
+        return uri_escape(MIME::Base64.new.encode-str($bewit));
+    };
 }
